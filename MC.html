@@ -46,12 +46,14 @@
     width:160px;
   }
   .sem-input:focus{outline:none;border-bottom-color:var(--gold);}
+
   #setupBanner{
     display:none;background:var(--amber-soft);border:1px solid var(--amber);
     border-radius:10px;padding:16px 18px;margin-bottom:20px;font-size:13.5px;line-height:1.6;
   }
   #setupBanner b{color:var(--amber);}
   #setupBanner code{background:#fff;padding:1px 6px;border-radius:4px;font-size:12.5px;}
+
   .rounds{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap;}
   .round-card{
     flex:1;min-width:210px;background:var(--card);border:1px solid var(--border);
@@ -71,6 +73,7 @@
   .bar-track{height:6px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:6px;}
   .bar-fill{height:100%;background:var(--gold);}
   .round-card .count{font-size:12px;color:var(--ink-soft);}
+
   .toolbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
   .toolbar select, .toolbar input[type=text]{
     padding:9px 12px;border:1px solid var(--border);border-radius:8px;
@@ -86,6 +89,7 @@
   .btn-gold{background:var(--ink);color:#fff;}
   .btn-outline{background:var(--card);color:var(--ink);border:1px solid var(--border);}
   #file-input{display:none;}
+
   table{width:100%;border-collapse:collapse;background:var(--card);border-radius:10px;overflow:hidden;border:1px solid var(--border);}
   thead th{
     text-align:left;font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;
@@ -97,6 +101,7 @@
   tbody tr:hover{background:#FBF9F3;}
   .name-cell{font-weight:600;}
   .meta-cell{color:var(--ink-soft);font-size:12.5px;}
+
   .round-cell{display:flex;justify-content:center;}
   .check-box{
     width:24px;height:24px;border-radius:7px;border:2px solid var(--border);
@@ -106,15 +111,19 @@
   .check-box.done{background:var(--green);border-color:var(--green);}
   .check-box.late{border-color:var(--red);}
   .check-box.warn{border-color:var(--amber);}
+
   .note-input{
     width:100%;border:1px solid transparent;border-radius:6px;padding:6px 8px;font-family:inherit;font-size:13px;
     background:transparent;
   }
   .note-input:hover{border-color:var(--border);}
   .note-input:focus{outline:none;border-color:var(--gold);background:#fff;}
+
   .del-btn{background:transparent;color:var(--ink-soft);font-size:16px;padding:2px 6px;}
   .del-btn:hover{color:var(--red);}
+
   .empty{padding:40px;text-align:center;color:var(--ink-soft);font-size:14px;}
+
   .add-form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
   .add-form input{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;}
   .toast{
@@ -134,12 +143,15 @@
     </div>
     <div style="text-align:right;font-size:12px;color:var(--ink-soft);" id="lastSaved"></div>
   </header>
+
   <div id="setupBanner">
     <b>⚠ Supabase 연결이 아직 안 되어 있어요.</b><br>
     이 파일 안의 <code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code> 값을 본인의 Supabase 프로젝트 정보로 바꿔주세요.
     (설정 방법은 채팅에서 안내해드린 내용을 참고하세요.)
   </div>
+
   <div class="rounds" id="roundsBar"></div>
+
   <div class="toolbar">
     <select id="teacherFilter" onchange="onTeacherFilterChange()"></select>
     <select id="classFilter" onchange="render()"></select>
@@ -149,6 +161,7 @@
     <button class="btn-outline" onclick="exportExcel()">엑셀로 내보내기</button>
     <button class="btn-gold" onclick="toggleAddForm()">학생 추가</button>
   </div>
+
   <div class="add-form" id="addForm" style="display:none;">
     <input id="addName" placeholder="이름">
     <input id="addPhone" placeholder="전화번호">
@@ -156,6 +169,7 @@
     <input id="addTeacher" placeholder="담임선생님">
     <button class="btn-gold" onclick="addStudent()">추가</button>
   </div>
+
   <table>
     <thead>
       <tr>
@@ -174,36 +188,48 @@
   </table>
   <div class="empty" id="emptyMsg" style="display:none;">학생이 없습니다. 엑셀 명단을 업로드하거나 학생을 직접 추가하세요.</div>
 </div>
+
 <div class="toast" id="toast"></div>
+
 <script>
 // ====== Supabase 설정: 아래 두 값을 본인 프로젝트 정보로 교체하세요 ======
 const SUPABASE_URL = 'https://ktizqdrhndefvoeltjko.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0aXpxZHJobmRlZnZvZWx0amtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwOTcxOTcsImV4cCI6MjA5MzY3MzE5N30.p3v9VZSgTr_ngL-QN8L_7hoORk1auTqMk8l6NWuE0Yk';
 // =====================================================================
-let supabase = null;
+
+let supabaseClient = null;
 let data = { semester:'', rounds:[{label:'1차',due:''},{label:'2차',due:''},{label:'3차',due:''}], students:[] };
 let configured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+
 if(configured){
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } else {
   document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('setupBanner').style.display = 'block';
   });
-}function todayStr(){ return new Date().toISOString().slice(0,10); }
+}
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
 function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2600);
-}function markSaved(){
+}
+
+function markSaved(){
   document.getElementById('lastSaved').textContent = '동기화됨 · ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-}async function loadData(){
+}
+
+async function loadData(){
   if(!configured) return;
   try{
-    const { data: settingsRow, error: sErr } = await supabase.from('consult_settings').select('*').eq('id', 1).single();
+    const { data: settingsRow, error: sErr } = await supabaseClient.from('consult_settings').select('*').eq('id', 1).single();
     if(sErr) throw sErr;
-    const { data: studentRows, error: stErr } = await supabase.from('consult_students').select('*').order('name', {ascending:true});
+    const { data: studentRows, error: stErr } = await supabaseClient.from('consult_students').select('*').order('name', {ascending:true});
     if(stErr) throw stErr;
+
     data.semester = settingsRow.semester || '';
     data.rounds = [
       {label:'1차', due: settingsRow.round1_due || ''},
@@ -214,6 +240,7 @@ function showToast(msg){
       id:r.id, name:r.name, phone:r.phone||'', className:r.class_name||'', teacher:r.teacher||'',
       round1: !!r.round1, round2: !!r.round2, round3: !!r.round3, note: r.note||''
     }));
+
     document.getElementById('semesterInput').value = data.semester;
     render();
     markSaved();
@@ -221,26 +248,33 @@ function showToast(msg){
     console.error('불러오기 실패', e);
     showToast('Supabase에서 데이터를 불러오지 못했어요. 설정을 확인해주세요.');
   }
-}async function updateSettings(patch){
+}
+
+async function updateSettings(patch){
   Object.assign(data, patch.local || {});
   if(!configured) return;
   try{
-    const { error } = await supabase.from('consult_settings').update(patch.remote).eq('id', 1);
+    const { error } = await supabaseClient.from('consult_settings').update(patch.remote).eq('id', 1);
     if(error) throw error;
     markSaved();
   }catch(e){
     console.error(e);
     showToast('설정 저장에 실패했어요.');
   }
-}document.getElementById('semesterInput').addEventListener('change', (e)=>{
+}
+
+document.getElementById('semesterInput').addEventListener('change', (e)=>{
   updateSettings({ local:{semester:e.target.value}, remote:{semester:e.target.value} });
 });
+
 function updateRoundDue(ri, val){
   data.rounds[ri].due = val;
   const col = 'round' + (ri+1) + '_due';
   updateSettings({ local:{}, remote:{ [col]: val } });
   render();
-}function statusOf(due, done){
+}
+
+function statusOf(due, done){
   if(done) return 'done';
   const today = todayStr();
   if(due && due < today) return 'late';
@@ -249,7 +283,9 @@ function updateRoundDue(ri, val){
     if(warnDate.toISOString().slice(0,10) <= today) return 'warn';
   }
   return 'pending';
-}function getFilteredStudents(){
+}
+
+function getFilteredStudents(){
   const q = document.getElementById('searchBox').value.trim().toLowerCase();
   const teacherSel = document.getElementById('teacherFilter').value;
   const classSel = document.getElementById('classFilter').value;
@@ -259,28 +295,38 @@ function updateRoundDue(ri, val){
     if(q && !((s.name||'').toLowerCase().includes(q) || (s.phone||'').toLowerCase().includes(q))) return false;
     return true;
   });
-}function populateFilters(){
+}
+
+function populateFilters(){
   const teacherSel = document.getElementById('teacherFilter');
   const classSel = document.getElementById('classFilter');
   const curTeacher = teacherSel.value;
   const curClass = classSel.value;
+
   const teachers = Array.from(new Set(data.students.map(s=>s.teacher).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ko-KR'));
   teacherSel.innerHTML = '<option value="">담임선생님 전체</option>' + teachers.map(t=>`<option value="${t}">${t}</option>`).join('');
   if(teachers.includes(curTeacher)) teacherSel.value = curTeacher;
+
   const classPool = curTeacher && teachers.includes(curTeacher)
     ? data.students.filter(s=>s.teacher===curTeacher)
     : data.students;
   const classes = Array.from(new Set(classPool.map(s=>s.className).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ko-KR'));
   classSel.innerHTML = '<option value="">반 전체</option>' + classes.map(c=>`<option value="${c}">${c}</option>`).join('');
   if(classes.includes(curClass)) classSel.value = curClass;
-}function onTeacherFilterChange(){
+}
+
+function onTeacherFilterChange(){
   document.getElementById('classFilter').value = '';
   render();
-}function render(){
+}
+
+function render(){
   populateFilters();
   renderRoundsBar();
   renderTable();
-}function renderRoundsBar(){
+}
+
+function renderRoundsBar(){
   const bar = document.getElementById('roundsBar');
   bar.innerHTML = '';
   const scope = getFilteredStudents();
@@ -307,7 +353,9 @@ function updateRoundDue(ri, val){
     `;
     bar.appendChild(card);
   });
-}function roundCellHtml(s, ri){
+}
+
+function roundCellHtml(s, ri){
   const key = 'round' + (ri+1);
   const due = data.rounds[ri].due;
   const done = !!s[key];
@@ -317,7 +365,9 @@ function updateRoundDue(ri, val){
          title="${done ? '완료 (클릭하면 취소)' : (st==='late'?'기한 지남 · 클릭하면 완료 처리':(st==='warn'?'마감 임박 · 클릭하면 완료 처리':'클릭하면 완료 처리'))}"
          onclick="toggleConsult(${s.id}, ${ri})">${done?'✓':''}</div>
   </div>`;
-}function studentRowHtml(s){
+}
+
+function studentRowHtml(s){
   return `
     <td class="name-cell">${s.name}</td>
     <td class="meta-cell">${s.phone||'-'}</td>
@@ -329,7 +379,9 @@ function updateRoundDue(ri, val){
     <td><input class="note-input" value="${(s.note||'').replace(/"/g,'&quot;')}" placeholder="메모" onchange="updateNote(${s.id}, this.value)"></td>
     <td><button class="del-btn" onclick="deleteStudent(${s.id})" title="삭제">×</button></td>
   `;
-}function renderTable(){
+}
+
+function renderTable(){
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
   const filtered = getFilteredStudents();
@@ -339,7 +391,9 @@ function updateRoundDue(ri, val){
     tr.innerHTML = studentRowHtml(s);
     tbody.appendChild(tr);
   });
-}async function toggleConsult(id, ri){
+}
+
+async function toggleConsult(id, ri){
   const s = data.students.find(x=>x.id===id);
   if(!s) return;
   const key = 'round' + (ri+1);
@@ -348,7 +402,7 @@ function updateRoundDue(ri, val){
   render();
   if(!configured) return;
   try{
-    const { error } = await supabase.from('consult_students').update({ [key]: newVal }).eq('id', id);
+    const { error } = await supabaseClient.from('consult_students').update({ [key]: newVal }).eq('id', id);
     if(error) throw error;
     markSaved();
   }catch(e){
@@ -357,14 +411,16 @@ function updateRoundDue(ri, val){
     render();
     showToast('저장에 실패했어요. 인터넷 연결을 확인해주세요.');
   }
-}async function updateNote(id, value){
+}
+
+async function updateNote(id, value){
   const s = data.students.find(x=>x.id===id);
   if(!s) return;
   const prev = s.note;
   s.note = value;
   if(!configured) return;
   try{
-    const { error } = await supabase.from('consult_students').update({ note: value }).eq('id', id);
+    const { error } = await supabaseClient.from('consult_students').update({ note: value }).eq('id', id);
     if(error) throw error;
     markSaved();
   }catch(e){
@@ -373,13 +429,15 @@ function updateRoundDue(ri, val){
     render();
     showToast('메모 저장에 실패했어요.');
   }
-}async function deleteStudent(id){
+}
+
+async function deleteStudent(id){
   const s = data.students.find(x=>x.id===id);
   if(!s) return;
   if(!confirm(`${s.name} 학생을 명단에서 삭제할까요?`)) return;
   if(configured){
     try{
-      const { error } = await supabase.from('consult_students').delete().eq('id', id);
+      const { error } = await supabaseClient.from('consult_students').delete().eq('id', id);
       if(error) throw error;
     }catch(e){
       console.error(e);
@@ -390,21 +448,26 @@ function updateRoundDue(ri, val){
   data.students = data.students.filter(x=>x.id!==id);
   render();
   markSaved();
-}function toggleAddForm(){
+}
+
+function toggleAddForm(){
   const f = document.getElementById('addForm');
   f.style.display = f.style.display==='none' ? 'flex' : 'none';
-}async function addStudent(){
+}
+
+async function addStudent(){
   const name = document.getElementById('addName').value.trim();
   if(!name){ showToast('이름을 입력해주세요.'); return; }
   const phone = document.getElementById('addPhone').value.trim();
   const className = document.getElementById('addClass').value.trim();
   const teacher = document.getElementById('addTeacher').value.trim();
+
   if(!configured){
     showToast('Supabase 설정을 먼저 완료해주세요.');
     return;
   }
   try{
-    const { data: inserted, error } = await supabase.from('consult_students')
+    const { data: inserted, error } = await supabaseClient.from('consult_students')
       .insert({ name, phone, class_name: className, teacher, round1:false, round2:false, round3:false, note:'' })
       .select().single();
     if(error) throw error;
@@ -419,7 +482,10 @@ function updateRoundDue(ri, val){
     console.error(e);
     showToast('학생 추가에 실패했어요.');
   }
-}document.getElementById('searchBox').addEventListener('input', render);
+}
+
+document.getElementById('searchBox').addEventListener('input', render);
+
 document.getElementById('file-input').addEventListener('change', async function(e){
   const file = e.target.files[0];
   if(!file) return;
@@ -450,7 +516,7 @@ document.getElementById('file-input').addEventListener('change', async function(
         showToast('추가할 새 학생이 없습니다 (모두 중복).');
         e.target.value=''; return;
       }
-      const { data: inserted, error } = await supabase.from('consult_students').insert(toInsert).select();
+      const { data: inserted, error } = await supabaseClient.from('consult_students').insert(toInsert).select();
       if(error) throw error;
       inserted.forEach(r=>{
         data.students.push({ id:r.id, name:r.name, phone:r.phone, className:r.class_name, teacher:r.teacher, round1:false, round2:false, round3:false, note:'' });
@@ -466,6 +532,7 @@ document.getElementById('file-input').addEventListener('change', async function(
   };
   reader.readAsArrayBuffer(file);
 });
+
 function exportExcel(){
   const rows = getFilteredStudents().map(s=>({
     '이름': s.name, '전화번호': s.phone, '반 이름': s.className, '담임선생님': s.teacher,
@@ -479,10 +546,13 @@ function exportExcel(){
   XLSX.utils.book_append_sheet(wb, ws, '상담현황');
   const fname = `${data.semester||'상담현황'}_${todayStr()}.xlsx`;
   XLSX.writeFile(wb, fname);
-}if(configured){
+}
+
+if(configured){
   loadData();
 } else {
   render();
-}</script>
+}
+</script>
 </body>
 </html>
