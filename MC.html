@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>남동탄 정상어학원 · MC 체크</title>
+<title>남동탄 정상어학원 · 정기상담 체크</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
@@ -102,7 +102,8 @@
   .name-cell{font-weight:600;}
   .meta-cell{color:var(--ink-soft);font-size:12.5px;}
 
-  .round-cell{display:flex;justify-content:center;}
+  .round-cell{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .round-note{width:90px;font-size:11.5px;text-align:center;padding:4px 6px;}
   .check-box{
     width:24px;height:24px;border-radius:7px;border:2px solid var(--border);
     display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;
@@ -173,15 +174,14 @@
   <table>
     <thead>
       <tr>
-        <th style="width:15%;">이름</th>
-        <th style="width:15%;">전화번호</th>
-        <th style="width:14%;">반</th>
-        <th style="width:12%;">담임선생님</th>
-        <th class="center" style="width:7%;">1차</th>
-        <th class="center" style="width:7%;">2차</th>
-        <th class="center" style="width:7%;">3차</th>
-        <th style="width:16%;">비고</th>
-        <th style="width:7%;"></th>
+        <th style="width:13%;">이름</th>
+        <th style="width:13%;">전화번호</th>
+        <th style="width:12%;">반</th>
+        <th style="width:10%;">담임선생님</th>
+        <th class="center" style="width:16%;">1차</th>
+        <th class="center" style="width:16%;">2차</th>
+        <th class="center" style="width:16%;">3차</th>
+        <th style="width:4%;"></th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -211,6 +211,10 @@ if(configured){
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 
+function sortStudents(){
+  data.students.sort((a,b)=> (a.name||'').localeCompare((b.name||''), 'ko-KR'));
+}
+
 function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -238,8 +242,10 @@ async function loadData(){
     ];
     data.students = (studentRows||[]).map(r=>({
       id:r.id, name:r.name, phone:r.phone||'', className:r.class_name||'', teacher:r.teacher||'',
-      round1: !!r.round1, round2: !!r.round2, round3: !!r.round3, note: r.note||''
+      round1: !!r.round1, round2: !!r.round2, round3: !!r.round3,
+      note1: r.note1||'', note2: r.note2||'', note3: r.note3||''
     }));
+    sortStudents();
 
     document.getElementById('semesterInput').value = data.semester;
     render();
@@ -357,13 +363,16 @@ function renderRoundsBar(){
 
 function roundCellHtml(s, ri){
   const key = 'round' + (ri+1);
+  const noteKey = 'note' + (ri+1);
   const due = data.rounds[ri].due;
   const done = !!s[key];
   const st = statusOf(due, done);
+  const noteVal = (s[noteKey]||'').replace(/"/g,'&quot;');
   return `<div class="round-cell">
     <div class="check-box ${st==='done'?'done':''} ${st==='late'?'late':''} ${st==='warn'?'warn':''}"
          title="${done ? '완료 (클릭하면 취소)' : (st==='late'?'기한 지남 · 클릭하면 완료 처리':(st==='warn'?'마감 임박 · 클릭하면 완료 처리':'클릭하면 완료 처리'))}"
          onclick="toggleConsult(${s.id}, ${ri})">${done?'✓':''}</div>
+    <input class="note-input round-note" value="${noteVal}" placeholder="메모" onchange="updateNote(${s.id}, ${ri}, this.value)">
   </div>`;
 }
 
@@ -376,7 +385,6 @@ function studentRowHtml(s){
     <td>${roundCellHtml(s,0)}</td>
     <td>${roundCellHtml(s,1)}</td>
     <td>${roundCellHtml(s,2)}</td>
-    <td><input class="note-input" value="${(s.note||'').replace(/"/g,'&quot;')}" placeholder="메모" onchange="updateNote(${s.id}, this.value)"></td>
     <td><button class="del-btn" onclick="deleteStudent(${s.id})" title="삭제">×</button></td>
   `;
 }
@@ -413,19 +421,20 @@ async function toggleConsult(id, ri){
   }
 }
 
-async function updateNote(id, value){
+async function updateNote(id, ri, value){
   const s = data.students.find(x=>x.id===id);
   if(!s) return;
-  const prev = s.note;
-  s.note = value;
+  const noteKey = 'note' + (ri+1);
+  const prev = s[noteKey];
+  s[noteKey] = value;
   if(!configured) return;
   try{
-    const { error } = await supabaseClient.from('consult_students').update({ note: value }).eq('id', id);
+    const { error } = await supabaseClient.from('consult_students').update({ [noteKey]: value }).eq('id', id);
     if(error) throw error;
     markSaved();
   }catch(e){
     console.error(e);
-    s.note = prev;
+    s[noteKey] = prev;
     render();
     showToast('메모 저장에 실패했어요.');
   }
@@ -468,10 +477,11 @@ async function addStudent(){
   }
   try{
     const { data: inserted, error } = await supabaseClient.from('consult_students')
-      .insert({ name, phone, class_name: className, teacher, round1:false, round2:false, round3:false, note:'' })
+      .insert({ name, phone, class_name: className, teacher, round1:false, round2:false, round3:false, note1:'', note2:'', note3:'' })
       .select().single();
     if(error) throw error;
-    data.students.push({ id:inserted.id, name, phone, className, teacher, round1:false, round2:false, round3:false, note:'' });
+    data.students.push({ id:inserted.id, name, phone, className, teacher, round1:false, round2:false, round3:false, note1:'', note2:'', note3:'' });
+    sortStudents();
     document.getElementById('addName').value='';
     document.getElementById('addPhone').value='';
     document.getElementById('addClass').value='';
@@ -509,7 +519,7 @@ document.getElementById('file-input').addEventListener('change', async function(
         const teacher = String(row['담임선생님']||row['담임 선생님']||row['담임']||'').trim();
         const exists = data.students.some(s=> s.name===name && s.phone===phone);
         if(!exists){
-          toInsert.push({ name, phone, class_name: className, teacher, round1:false, round2:false, round3:false, note:'' });
+          toInsert.push({ name, phone, class_name: className, teacher, round1:false, round2:false, round3:false, note1:'', note2:'', note3:'' });
         }
       });
       if(toInsert.length===0){
@@ -519,8 +529,9 @@ document.getElementById('file-input').addEventListener('change', async function(
       const { data: inserted, error } = await supabaseClient.from('consult_students').insert(toInsert).select();
       if(error) throw error;
       inserted.forEach(r=>{
-        data.students.push({ id:r.id, name:r.name, phone:r.phone, className:r.class_name, teacher:r.teacher, round1:false, round2:false, round3:false, note:'' });
+        data.students.push({ id:r.id, name:r.name, phone:r.phone, className:r.class_name, teacher:r.teacher, round1:false, round2:false, round3:false, note1:'', note2:'', note3:'' });
       });
+      sortStudents();
       render();
       markSaved();
       showToast(`${inserted.length}명 추가되었습니다.`);
@@ -537,9 +548,11 @@ function exportExcel(){
   const rows = getFilteredStudents().map(s=>({
     '이름': s.name, '전화번호': s.phone, '반 이름': s.className, '담임선생님': s.teacher,
     '1차 완료여부': s.round1 ? '완료' : '미완료',
+    '1차 메모': s.note1 || '',
     '2차 완료여부': s.round2 ? '완료' : '미완료',
+    '2차 메모': s.note2 || '',
     '3차 완료여부': s.round3 ? '완료' : '미완료',
-    '비고': s.note || ''
+    '3차 메모': s.note3 || ''
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
